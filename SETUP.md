@@ -1,7 +1,4 @@
 # SmartFit Platform - MERN Stack Setup
-
-This project has been migrated from Supabase to a MERN (MongoDB, Express, React, Node.js) stack.
-
 ## Prerequisites
 
 - Node.js 16+ installed
