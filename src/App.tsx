@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, useLocation, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { Navigation } from './components/Navigation';
 import { Dashboard } from './pages/Dashboard';
@@ -13,6 +13,7 @@ import { Classes } from './pages/Classes';
 function AppContent() {
   const { user, profile, loading } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Determine current page from URL pathname
   const getCurrentPage = () => {
@@ -59,9 +60,9 @@ function AppContent() {
         </div>
         <div className="relative">
           {location.pathname === '/signup' ? (
-            <Signup onSwitchToLogin={() => {}} />
+            <Signup onSwitchToLogin={() => navigate('/login')} />
           ) : (
-            <Login onSwitchToSignup={() => {}} />
+            <Login onSwitchToSignup={() => navigate('/signup')} />
           )}
         </div>
       </div>

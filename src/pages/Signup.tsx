@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserPlus, Mail, Lock, User, AlertCircle, CheckCircle } from 'lucide-react';
 import { GlassCard } from '../components/GlassCard';
 import { useAuth } from '../contexts/AuthContext';
@@ -9,6 +10,7 @@ interface SignupProps {
 
 export function Signup({ onSwitchToLogin }: SignupProps) {
   const { signUp } = useAuth();
+  const navigate = useNavigate();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -36,10 +38,20 @@ export function Signup({ onSwitchToLogin }: SignupProps) {
 
     setLoading(true);
 
-    const { error } = await signUp(email, password, fullName);
+    try {
+      const { error } = await signUp(email, password, fullName);
 
-    if (error) {
-      setError(error.message);
+      if (error) {
+        console.error('Signup error:', error);
+        setError(error.message);
+        setLoading(false);
+      } else {
+        console.log('Signup successful, redirecting...');
+        navigate('/dashboard');
+      }
+    } catch (err) {
+      console.error('Signup exception:', err);
+      setError('An unexpected error occurred');
       setLoading(false);
     }
   };
