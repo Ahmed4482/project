@@ -17,7 +17,32 @@ const PORT = process.env.PORT || 5000;
 
 let db;
 
-const mongoClient = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/smartfit');
+// MongoDB Client with TLS/SSL options for Render compatibility
+const mongoClient = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/smartfit', {
+  // Connection pool settings
+  maxPoolSize: 10,
+  minPoolSize: 2,
+  
+  // Timeout settings
+  serverSelectionTimeoutMS: 30000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 30000,
+  
+  // TLS/SSL settings for Render
+  tls: true,
+  tlsAllowInvalidCertificates: true,
+  tlsAllowInvalidHostnames: true,
+  
+  // Retry settings
+  retryWrites: true,
+  retryReads: true,
+  
+  // Force IPv4
+  family: 4,
+  
+  // Compression
+  compressors: ['snappy', 'zlib']
+});
 
 // CORS Configuration - Updated to be more specific
 app.use(cors({
@@ -70,6 +95,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'SmartFit API is running!',
+    status: 'healthy',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Server error:', err);
@@ -86,19 +120,41 @@ app.use((req, res) => {
 
 async function connectDB() {
   try {
+    console.log('Attempting to connect to MongoDB...');
     await mongoClient.connect();
+    
+    // Verify connection
+    await mongoClient.db('admin').command({ ping: 1 });
+    
     db = mongoClient.db('smartfit');
     console.log('✓ Connected to MongoDB');
+    console.log(`✓ Database: ${db.databaseName}`);
 
     await initializeCollections(db);
 
-    app.listen(PORT, () => {
-      console.log(`✓ Server running on http://localhost:${PORT}`);
+    // Start server only after successful DB connection
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✓ Server running on port ${PORT}`);
+      console.log(`✓ Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`✓ CORS enabled for development origins`);
     });
   } catch (error) {
-    console.error('✗ Failed to connect to MongoDB:', error);
-    process.exit(1);
+    console.error('✗ Failed to connect to MongoDB:', error.message);
+    
+    // Log more details in production
+    if (process.env.NODE_ENV === 'production') {
+      console.error('Error details:', {
+        name: error.name,
+        code: error.code,
+        message: error.message
+      });
+      
+      // Retry connection after delay
+      console.log('Retrying connection in 5 seconds...');
+      setTimeout(connectDB, 5000);
+    } else {
+      process.exit(1);
+    }
   }
 }
 
@@ -315,14 +371,22 @@ connectDB();
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('\nShutting down gracefully...');
-  await mongoClient.close();
-  console.log('✓ MongoDB connection closed');
+  try {
+    await mongoClient.close();
+    console.log('✓ MongoDB connection closed');
+  } catch (error) {
+    console.error('Error closing MongoDB connection:', error);
+  }
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('\nShutting down gracefully...');
-  await mongoClient.close();
-  console.log('✓ MongoDB connection closed');
+  try {
+    await mongoClient.close();
+    console.log('✓ MongoDB connection closed');
+  } catch (error) {
+    console.error('Error closing MongoDB connection:', error);
+  }
   process.exit(0);
 });
